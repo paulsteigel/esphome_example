@@ -1,0 +1,208 @@
+substitutions:
+  device1: "Load"
+  device2: "Grid"
+  device_description: "Pzem energy sensors"
+  name: "esphome_pzem"
+  friendly_name: "esphome-pzem"
+
+esphome:
+  name: homehanoi_pzem
+  friendly_name: homehanoi_pzem
+  comment: '${device_description}'
+  
+# Cách đấu UART như sau: 5V của PZEM vào 3.3V trên mạch nguồn, đừng dùng 5V nếu dùng 5V thì phải dùng level shifter
+# Các chân TX/RX có thể thay đổi tuỳ ý theo nguyên tắc sau đây. Nếu đấu nhiều pzem trên uart bus thì phải dùng
+# 1 diode loại bat85 cho mỗi chân TX của Pzem chiều như sau RX (ESP) |>| TX (PZEM) đồng thời dùng 1 điện trở pull up tầm 5-10K nối kênh RX (ESP) của Bus
+uart:
+  - id: "${name}_${device1}_uart"
+    tx_pin: GPIO1 #RX on PZEM
+    rx_pin: GPIO3 #TX on PZEM
+    baud_rate: 9600
+    stop_bits: 1 # 2 for ESP32, 1 for ESP8266
+    debug:
+      direction: BOTH    
+
+
+modbus:  
+  - id: "${name}_${device1}_modbus"
+    send_wait_time: 200ms
+    uart_id: "${name}_${device1}_uart"
+
+esp8266:
+  board: esp01_1m #d1_mini
+
+# Enable logging
+logger:
+    baud_rate: 0
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "aMHVKiN5W5F8CcANg64lhHt6/3Ovm9+BftAExX/h7fM="
+
+mqtt:
+  broker: myhome.sfdp.net
+  username: mqtt_user
+  password: D1ndh1sk@
+  client_id: homehanoi_pzem_mqtt
+
+ota:
+  password: "a1a439eb5b9b78b4a83da60dfd9a7660"
+
+wifi:
+  ssid: "HOME_F4"
+  password: "ngoc12345"
+  use_address: 192.168.100.26
+  # Optional manual IP  
+  manual_ip:
+    static_ip: 192.168.100.26
+    gateway: 192.168.100.254
+    subnet: 255.255.255.0
+    dns1: 8.8.8.8
+    dns2: 8.8.4.4
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp8266"
+    password: "ngoc12345"
+
+captive_portal:
+
+time:
+  - platform: homeassistant
+    id: esptime 
+
+output:
+  - platform: gpio
+    pin: GPIO2
+    id: led
+    inverted: true
+
+light:
+  - platform: binary
+    output: led
+    id: blue_led
+    name: "Blue LED"
+    internal: true
+
+sensor:
+  - platform: pzemac
+    address: 0x03
+    update_interval: never
+    id: pzem1
+    current:
+      name: "${name}_${device1} Current"
+      id: "${name}_${device1}_current"
+    voltage:
+      name: "${name}_${device1} Voltage"      
+      id: "${name}_${device1}_voltage"
+    energy:
+      name: "${name}_${device1} Energy"
+      id: "${name}_${device1}_energy"
+    power:
+      name: "${name}_${device1} Power"
+      id: "${name}_${device1}_power"
+    frequency:
+      name: "${name}_${device1} Frequency"
+      id: "${name}_${device1}_frequency"
+    power_factor:
+      name: "${name}_${device1} Power Factor"
+      id: "${name}_${device1}_power_factor"    
+
+  - platform: total_daily_energy
+    name: "Total Daily Energy"
+    id: "${name}_${device1}_total_daily_energy"
+    unit_of_measurement: kWh
+    filters:
+      - multiply: 0.001
+    power_id: "${name}_${device1}_power"
+
+  - platform: pzemac
+    address: 0x02
+    update_interval: never
+    id: pzem2
+    current:
+      name: "${name}_${device2} Current"
+      id: "${name}_${device2}_current"
+    voltage:
+      name: "${name}_${device2} Voltage"      
+      id: "${name}_${device2}_voltage"
+    energy:
+      name: "${name}_${device2} Energy"
+      id: "${name}_${device2}_energy"
+    power:
+      name: "${name}_${device2} Power"
+      id: "${name}_${device2}_power"
+    frequency:
+      name: "${name}_${device2} Frequency"
+      id: "${name}_${device2}_frequency"
+    power_factor:
+      name: "${name}_${device2} Power Factor"
+      id: "${name}_${device2}_power_factor"    
+
+  - platform: total_daily_energy
+    name: "Total Daily Energy"
+    id: "${name}_${device2}_total_daily_energy"
+    unit_of_measurement: kWh
+    filters:
+      - multiply: 0.001
+    power_id: "${name}_${device2}_power"
+
+  - platform: integration
+    name: "${friendly_name} Energy Meter" 
+    sensor: ${name}_${device1}_power
+    time_unit: h
+    filters:
+     # Multiplication factor from W to kW is 0.001
+      - multiply: 0.001
+    unit_of_measurement: kWh
+    icon: mdi:counter  
+
+  - platform: integration
+    name: "${friendly_name} Energy Meter" 
+    sensor: ${name}_${device2}_power
+    time_unit: h
+    filters:
+     # Multiplication factor from W to kW is 0.001
+      - multiply: 0.001
+    unit_of_measurement: kWh
+    icon: mdi:counter  
+  
+    # Uptime sensor.
+  - platform: uptime
+    name: ${friendly_name} Uptime
+    id: "${name}_uptime"
+
+  # WiFi Signal sensor.
+  - platform: wifi_signal
+    name: ${name} WiFi Signal
+    id: "${name}_wifi_signal"
+    update_interval: 60s
+
+binary_sensor:
+  - platform: status
+    name: "${name} Status" 
+
+#status_led:
+#  pin:
+#     number: GPIO2
+#     inverted: false
+
+switch:    
+  # Restart ESPHOME
+  - platform: restart
+    name: "Restart_ESP"
+
+interval:
+  - interval: 10s
+    then:
+      - light.toggle:
+            id: blue_led      
+      - delay: 150ms
+      - lambda: "id(pzem1).update();"
+      - delay: 150ms
+      - lambda: "id(pzem2).update();"
+      - delay: 150ms
+      - light.toggle:
+            id: blue_led
+        
