@@ -12,7 +12,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
-
+# V1.16.6 paulsteigel : copy and revised current limit for charging control from most updated version by Sleeper85 and Mr.Pablo
+# https://github.com/Sleeper85/esphome-jk-bms-can/blob/main/ESP32_LFP_Wire_jk-bms-can.yaml V1.17.5
 # V1.16.5 paulsteigel : Adding limitation for discharging/charging when cell voltage reach limit and SOC was incorrectly calculated!
 # V1.16.4 Sleeper85 : Improved Charging Logic for ESP32 startup/reboot and Float charge, Add CAN ID 0x356 bytes [06:07] cycles for Sofar, Change switch name
 # V1.16.3 Sleeper85 : ID 0x379 will be sent when choosing protocol 2 or 4 (Battery Capacity for Victron, Sol-Ark and Luxpower)
