@@ -234,6 +234,14 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: previous_current
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: last_current_change
+    type: int
+    restore_value: no
+    initial_value: '0'
   
 output:
   - platform: gpio
@@ -537,13 +545,22 @@ sensor:
         float temp_cur = 0.0;        
         // map the charging current to the max cell voltage rising
         temp_cur = id(charging_current).state;
-        if (id(can_switch_auto_charge_current).state) {        
-          if (id(max_cell_voltage).state * 1000 <= (id(can_over_voltage_protection).state -20)) {          
+        if (id(max_cell_voltage).state * 1000 <= (id(can_over_voltage_protection).state -20)) {          
             //temp_cur = max(0.0,(- pow(${charge_a_factor_curve_end}, pow( max(0.0, ((x - cell_float_v) / (id(can_over_voltage_protection).state - cell_float_v))),${charge_a_factor_curve_shape}))+2) * id(charging_current).state);
             int temp_cur_x = map(id(max_cell_voltage).state * 1000, id(can_over_voltage_protection).state - 100, id(can_over_voltage_protection).state + 10, id(charging_current).state * 10, 0.0);
             temp_cur = float(temp_cur_x) / 10;
+            // do not recover back to high current too quickly
+            if (id(previous_current) <= temp_cur_x) {                            
+              if (millis() - id(last_current_change) > 60 * 1000) {
+                // reduce current immediately to the map() value
+                id(last_current_change) = millis();
+                id(previous_current) = temp_cur_x;
+              } else {
+                // reduce current immediately to the last_current_change
+                temp_cur = float(id(previous_current)) / 10;
+              }
+            }  
           } 
-        }
         
         id(charging_a) = temp_cur;                      
         return temp_cur;
